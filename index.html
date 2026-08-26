@@ -8,101 +8,132 @@
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
 
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { overflow: hidden; height: 100%; }
-    body { font-family: 'Segoe UI', Arial, sans-serif; background: #000; }
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      overflow: hidden; height: 100%;
+      touch-action: none; /* cegah zoom bawaan browser, supaya pinch-zoom custom kita yang jalan */
+    }
+    body {
+      font-family: -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+      background: #0a1a26;
+    }
 
     #camera-feed {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      object-fit: cover; z-index: 0;
+      object-fit: cover; z-index: 0; touch-action: none;
     }
     a-scene {
       position: fixed !important; top: 0; left: 0; width: 100%; height: 100%;
-      z-index: 1; background: transparent !important;
+      z-index: 1; background: transparent !important; touch-action: none;
     }
+    canvas { touch-action: none; }
+
     #camera-error, #not-found {
       position: fixed; inset: 0; z-index: 5; display: none;
-      background: #111; color: #fff; align-items: center; justify-content: center;
+      background: #eaf6ff; color: #0a3a53; align-items: center; justify-content: center;
       text-align: center; padding: 24px; font-size: 14px; line-height: 1.6;
     }
     #loading {
       position: fixed; inset: 0; z-index: 6; display: flex;
-      background: #000; color: #f5d98b; align-items: center; justify-content: center;
-      text-align: center; font-size: 14px; flex-direction: column; gap: 10px;
+      background: #eaf6ff; color: #2f8fc7; align-items: center; justify-content: center;
+      text-align: center; font-size: 14px; flex-direction: column; gap: 12px;
     }
     .spinner {
-      width: 34px; height: 34px; border: 3px solid rgba(245,217,139,0.3);
-      border-top-color: #f5d98b; border-radius: 50%; animation: spin 1s linear infinite;
+      width: 32px; height: 32px; border: 3px solid rgba(79,168,216,0.25);
+      border-top-color: #4fa8d8; border-radius: 50%; animation: spin 0.9s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* ===== Header ===== */
     #overlay-top {
       position: fixed; top: 0; left: 0; right: 0; z-index: 999;
-      background: linear-gradient(180deg, rgba(20,10,5,0.85), transparent);
-      padding: 14px 16px 30px; text-align: center; pointer-events: none;
+      background: linear-gradient(180deg, rgba(10,30,50,0.55) 0%, rgba(10,30,50,0.15) 70%, transparent 100%);
+      padding: 16px 96px 26px 18px; /* padding kanan diberi ruang utk thumbnail foto */
+      pointer-events: none;
     }
     #overlay-top h1 {
-      color: #f5d98b; font-size: 17px; letter-spacing: 0.5px;
-      text-shadow: 0 2px 4px rgba(0,0,0,0.6);
+      color: #eaf6ff; font-size: 16px; font-weight: 600; letter-spacing: 0.3px;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+      display: flex; align-items: center; gap: 6px; line-height: 1.3;
     }
     #overlay-top p {
-      color: #eee; font-size: 12px; margin-top: 4px; opacity: 0.9;
+      color: #cfe9fa; font-size: 11.5px; margin-top: 4px; opacity: 0.95;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.4);
     }
 
-    #hint-box {
-      position: fixed; bottom: 90px; left: 12px; right: 12px; z-index: 999;
-      background: rgba(20,10,5,0.9); color: #f5f0e6; border-radius: 12px;
-      padding: 12px 16px; font-size: 13px; line-height: 1.5;
-      border: 1px solid rgba(245,217,139,0.4);
-      display: none; max-height: 40vh; overflow-y: auto;
-    }
-    #hint-box.show { display: block; }
-    #hint-box b { color: #f5d98b; }
-
-    #controls {
-      position: fixed; bottom: 16px; left: 0; right: 0; z-index: 999;
-      display: flex; justify-content: center; gap: 10px;
-    }
-    #controls button {
-      background: #8a1f11; color: #f5d98b; border: 1px solid #f5d98b;
-      padding: 10px 18px; border-radius: 24px; font-size: 13px;
-      font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-    }
-    #controls button:active { transform: scale(0.96); }
-
+    /* ===== Status badge ===== */
     #status {
-      position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
-      z-index: 999; background: rgba(30,120,40,0.8); color: #fff;
-      font-size: 11px; padding: 4px 10px; border-radius: 10px;
+      position: fixed; top: 78px; left: 18px; z-index: 999;
+      background: rgba(255,255,255,0.85); color: #1b7a4d;
+      font-size: 10.5px; font-weight: 600; padding: 5px 12px; border-radius: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      backdrop-filter: blur(4px);
     }
 
-    /* Thumbnail foto 2D di kanan atas */
+    /* ===== Thumbnail foto 2D ===== */
     #photo-thumb {
-      position: fixed; top: 14px; right: 14px; z-index: 1000;
-      width: 64px; height: 64px; border-radius: 10px;
-      border: 2px solid #f5d98b; overflow: hidden;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+      position: fixed; top: 16px; right: 16px; z-index: 1000;
+      width: 58px; height: 58px; border-radius: 14px;
+      border: 2px solid rgba(255,255,255,0.9); overflow: hidden;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.35);
       cursor: pointer; display: none;
     }
     #photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
 
-    /* Overlay foto membesar saat thumbnail diklik */
     #photo-modal {
       position: fixed; inset: 0; z-index: 2000; display: none;
-      background: rgba(0,0,0,0.9); align-items: center; justify-content: center;
+      background: rgba(10,30,50,0.92); align-items: center; justify-content: center;
       padding: 24px;
     }
     #photo-modal.show { display: flex; }
     #photo-modal img {
-      max-width: 100%; max-height: 85vh; border-radius: 8px;
-      border: 2px solid #f5d98b;
+      max-width: 100%; max-height: 85vh; border-radius: 12px;
+      border: 2px solid rgba(255,255,255,0.9);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5);
     }
     #photo-modal-close {
-      position: absolute; top: 20px; right: 20px;
-      background: #8a1f11; color: #f5d98b; border: 1px solid #f5d98b;
-      width: 36px; height: 36px; border-radius: 50%; font-size: 18px;
+      position: absolute; top: 22px; right: 22px;
+      background: #ffffff; color: #2f8fc7; border: none;
+      width: 38px; height: 38px; border-radius: 50%; font-size: 18px;
       display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
     }
+
+    /* ===== Info panel ===== */
+    #hint-box {
+      position: fixed; bottom: 96px; left: 14px; right: 14px; z-index: 999;
+      background: rgba(255,255,255,0.95); color: #0a3a53; border-radius: 16px;
+      padding: 16px 18px; font-size: 13px; line-height: 1.55;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.25);
+      display: none; max-height: 38vh; overflow-y: auto;
+      backdrop-filter: blur(6px);
+    }
+    #hint-box.show { display: block; }
+    #hint-box b { color: #2f8fc7; font-size: 14px; }
+
+    /* ===== Bottom controls ===== */
+    #controls {
+      position: fixed; bottom: 18px; left: 0; right: 0; z-index: 999;
+      display: flex; justify-content: center; gap: 10px; padding: 0 14px;
+    }
+    #controls button {
+      background: rgba(255,255,255,0.95); color: #2f8fc7; border: none;
+      padding: 11px 20px; border-radius: 24px; font-size: 12.5px;
+      font-weight: 600; box-shadow: 0 3px 14px rgba(0,0,0,0.25);
+      display: flex; align-items: center; gap: 6px;
+    }
+    #controls button:active { transform: scale(0.95); }
+
+    /* ===== Hint zoom (muncul sebentar lalu hilang) ===== */
+    #zoom-hint {
+      position: fixed; bottom: 74px; left: 50%; transform: translateX(-50%);
+      z-index: 998; background: rgba(255,255,255,0.9); color: #2f8fc7;
+      font-size: 11px; font-weight: 600; padding: 6px 14px; border-radius: 16px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      opacity: 1; transition: opacity 0.6s ease;
+      pointer-events: none;
+    }
+    #zoom-hint.hide { opacity: 0; }
   </style>
 </head>
 <body>
@@ -133,7 +164,6 @@
 
   <div id="status">✅ AR aktif</div>
 
-  <!-- Thumbnail foto 2D, klik untuk membesar -->
   <div id="photo-thumb" onclick="openPhoto()">
     <img id="photo-thumb-img" src="" alt="Foto referensi" />
   </div>
@@ -142,6 +172,8 @@
     <div id="photo-modal-close" onclick="closePhoto()">✕</div>
     <img id="photo-modal-img" src="" alt="Foto referensi diperbesar" />
   </div>
+
+  <div id="zoom-hint">🤏 Cubit layar dengan 2 jari untuk zoom</div>
 
   <div id="hint-box"></div>
 
@@ -160,8 +192,18 @@
     <a-entity light="type: ambient; intensity: 0.9"></a-entity>
     <a-entity light="type: directional; intensity: 0.7" position="1 2 1"></a-entity>
 
-    <!-- Wadah tempat model/figur akan disisipkan lewat JavaScript -->
-    <a-entity id="content-anchor" position="0 -0.3 -2.4"></a-entity>
+    <a-entity id="content-anchor" position="0 -0.3 -2.4">
+      <!-- Objek 3D/figur ditaruh di dalam sini, terpisah dari label supaya
+           bisa di-zoom sendiri tanpa mengubah ukuran teks judul -->
+      <a-entity id="object-container" scale="1 1 1"></a-entity>
+
+      <!-- Panel judul melayang (ukurannya tetap, tidak ikut zoom) -->
+      <a-entity
+        id="floating-label"
+        position="0 1.35 0"
+        animation="property: position; to: 0 1.45 0; dir: alternate; loop: true; dur: 1500"
+      ></a-entity>
+    </a-entity>
 
     <a-entity id="cam" camera look-controls="enabled: true" position="0 0 0"></a-entity>
   </a-scene>
@@ -169,14 +211,6 @@
   <script>
     // =========================================================
     // DAFTAR SITUS: tambahkan satu baris per lokasi/QR di sini.
-    // id        -> dipakai di URL: ?id=xxxx (harus unik, tanpa spasi)
-    // title     -> judul yang tampil melayang di atas objek
-    // subtitle  -> teks kecil di header atas
-    // model     -> path file .glb di folder /models/, atau null untuk
-    //              pakai figur prajurit bawaan (placeholder demo)
-    // scale     -> ukuran model, sesuaikan (mulai dari "1 1 1")
-    // yOffset   -> geser naik/turun model bila posisinya kurang pas
-    // narration -> teks yang dibacakan & ditampilkan di panel info
     // =========================================================
     const SITES = {
       "puputan-badung": {
@@ -223,17 +257,21 @@
     const titleEl = document.getElementById('site-title');
     const subtitleEl = document.getElementById('site-subtitle');
     const hintBox = document.getElementById('hint-box');
-    const anchor = document.getElementById('content-anchor');
+    const objectContainer = document.getElementById('object-container');
+    const floatingLabel = document.getElementById('floating-label');
+
+    let baseScale = [1, 1, 1];
 
     if (!site) {
       loadingEl.style.display = 'none';
       notFoundEl.style.display = 'flex';
     } else {
-      titleEl.textContent = '🏛️ ' + site.title.split('\n')[0];
+      titleEl.innerHTML = '🏛️ ' + site.title.split('\n')[0];
       subtitleEl.textContent = site.subtitle || '';
       hintBox.innerHTML = '<b>' + site.title.replace('\n', ' ') + '</b><br/>' + site.narration;
 
-      // Thumbnail foto 2D (kalau situs ini punya foto referensi)
+      baseScale = (site.scale || '1 1 1').split(' ').map(Number);
+
       if (site.photo) {
         const thumb = document.getElementById('photo-thumb');
         const thumbImg = document.getElementById('photo-thumb-img');
@@ -243,18 +281,11 @@
         thumb.style.display = 'block';
       }
 
-      // Panel judul melayang (selalu ada)
-      const label = document.createElement('a-entity');
-      label.setAttribute('position', '0 1.35 0');
-      label.setAttribute('text', `value: ${site.title}; align: center; width: 2.6; color: #f5d98b; font: exo2bold`);
-      label.setAttribute('animation', 'property: position; to: 0 1.45 0; dir: alternate; loop: true; dur: 1500');
-      anchor.appendChild(label);
+      floatingLabel.setAttribute('text', `value: ${site.title}; align: center; width: 2.6; color: #eaf6ff; font: exo2bold`);
 
       if (site.model) {
-        // Muat model 3D custom (.glb)
         const modelEntity = document.createElement('a-entity');
         modelEntity.setAttribute('gltf-model', `url(${site.model})`);
-        modelEntity.setAttribute('scale', site.scale || '1 1 1');
         modelEntity.setAttribute('position', `0 ${site.yOffset || 0} 0`);
         modelEntity.setAttribute('animation', 'property: rotation; to: 0 360 0; loop: true; dur: 10000; easing: linear');
 
@@ -262,31 +293,33 @@
           loadingEl.style.display = 'none';
         });
         modelEntity.addEventListener('model-error', () => {
-          loadingEl.innerHTML = '<div style="color:#ff8080; padding:0 24px; text-align:center;">⚠️ Gagal memuat model 3D.<br/>Periksa apakah file "' + site.model + '" sudah diupload ke folder /models/.</div>';
+          loadingEl.innerHTML = '<div style="color:#c0392b; padding:0 24px; text-align:center;">⚠️ Gagal memuat model 3D.<br/>Periksa apakah file "' + site.model + '" sudah diupload ke folder /models/.</div>';
         });
 
-        anchor.appendChild(modelEntity);
+        objectContainer.appendChild(modelEntity);
       } else {
-        // Figur placeholder bawaan (geometris) untuk demo tanpa aset custom
         loadingEl.style.display = 'none';
         const warrior = document.createElement('a-entity');
+        warrior.setAttribute('position', `0 ${site.yOffset || 0} 0`);
         warrior.setAttribute('animation', 'property: rotation; to: 0 360 0; loop: true; dur: 9000; easing: linear');
         warrior.innerHTML = `
           <a-cylinder position="-0.12 -0.45 0" radius="0.06" height="0.7" color="#3b2a1a"></a-cylinder>
           <a-cylinder position="0.12 -0.45 0" radius="0.06" height="0.7" color="#3b2a1a"></a-cylinder>
-          <a-box position="0 0.1 0" width="0.42" height="0.75" depth="0.24" color="#8a1f11"></a-box>
-          <a-box position="0 0.1 0.121" width="0.42" height="0.75" depth="0.01" color="#f5f0e6" opacity="0.9"></a-box>
+          <a-box position="0 0.1 0" width="0.42" height="0.75" depth="0.24" color="#4fa8d8"></a-box>
+          <a-box position="0 0.1 0.121" width="0.42" height="0.75" depth="0.01" color="#eaf6ff" opacity="0.9"></a-box>
           <a-sphere position="0 0.58 0" radius="0.19" color="#c98a5b"></a-sphere>
-          <a-cone position="0 0.78 0" radius-bottom="0.21" radius-top="0.03" height="0.2" color="#f5d98b"></a-cone>
+          <a-cone position="0 0.78 0" radius-bottom="0.21" radius-top="0.03" height="0.2" color="#eaf6ff"></a-cone>
           <a-cylinder position="-0.3 0.2 0" radius="0.045" height="0.48" rotation="0 0 25" color="#c98a5b"></a-cylinder>
           <a-cylinder position="0.3 0.2 0" radius="0.045" height="0.48" rotation="0 0 -25" color="#c98a5b"></a-cylinder>
-          <a-box position="0.44 0.08 0" width="0.025" height="0.55" depth="0.025" color="#e0c25c" rotation="0 0 -20"></a-box>
+          <a-box position="0.44 0.08 0" width="0.025" height="0.55" depth="0.025" color="#dcdcdc" rotation="0 0 -20"></a-box>
         `;
-        anchor.appendChild(warrior);
+        objectContainer.appendChild(warrior);
       }
+
+      objectContainer.setAttribute('scale', `${baseScale[0]} ${baseScale[1]} ${baseScale[2]}`);
     }
 
-    // Kamera
+    // ===== Kamera =====
     const video = document.getElementById('camera-feed');
     const errorBox = document.getElementById('camera-error');
     navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
@@ -323,6 +356,52 @@
       speechSynthesis.speak(utterance);
       hintBox.classList.add('show');
     }
+
+    // ===== Pinch-to-zoom (2 jari) untuk memperbesar/perkecil objek 3D =====
+    let pinchStartDistance = null;
+    let zoomAtPinchStart = 1;
+    let currentZoom = 1;
+    const MIN_ZOOM = 0.3;
+    const MAX_ZOOM = 5;
+
+    function getTouchDistance(touches) {
+      const dx = touches[0].clientX - touches[1].clientX;
+      const dy = touches[0].clientY - touches[1].clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    function applyZoom() {
+      const s = [baseScale[0] * currentZoom, baseScale[1] * currentZoom, baseScale[2] * currentZoom];
+      objectContainer.setAttribute('scale', `${s[0]} ${s[1]} ${s[2]}`);
+    }
+
+    window.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 2) {
+        pinchStartDistance = getTouchDistance(e.touches);
+        zoomAtPinchStart = currentZoom;
+      }
+    }, { passive: false });
+
+    window.addEventListener('touchmove', (e) => {
+      if (e.touches.length === 2 && pinchStartDistance) {
+        e.preventDefault();
+        const newDistance = getTouchDistance(e.touches);
+        let newZoom = zoomAtPinchStart * (newDistance / pinchStartDistance);
+        newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, newZoom));
+        currentZoom = newZoom;
+        applyZoom();
+      }
+    }, { passive: false });
+
+    window.addEventListener('touchend', (e) => {
+      if (e.touches.length < 2) pinchStartDistance = null;
+    });
+
+    // Hint zoom hilang otomatis setelah 4 detik, atau begitu user mulai pinch
+    setTimeout(() => document.getElementById('zoom-hint').classList.add('hide'), 4000);
+    window.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 2) document.getElementById('zoom-hint').classList.add('hide');
+    }, { once: true });
   </script>
 
 </body>
