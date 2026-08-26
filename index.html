@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>JEJAKAR BALI - Puputan Badung AR</title>
+  <title>JEJAKAR BALI</title>
 
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
 
@@ -20,11 +20,21 @@
       position: fixed !important; top: 0; left: 0; width: 100%; height: 100%;
       z-index: 1; background: transparent !important;
     }
-    #camera-error {
+    #camera-error, #not-found {
       position: fixed; inset: 0; z-index: 5; display: none;
       background: #111; color: #fff; align-items: center; justify-content: center;
       text-align: center; padding: 24px; font-size: 14px; line-height: 1.6;
     }
+    #loading {
+      position: fixed; inset: 0; z-index: 6; display: flex;
+      background: #000; color: #f5d98b; align-items: center; justify-content: center;
+      text-align: center; font-size: 14px; flex-direction: column; gap: 10px;
+    }
+    .spinner {
+      width: 34px; height: 34px; border: 3px solid rgba(245,217,139,0.3);
+      border-top-color: #f5d98b; border-radius: 50%; animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
     #overlay-top {
       position: fixed; top: 0; left: 0; right: 0; z-index: 999;
@@ -41,10 +51,10 @@
 
     #hint-box {
       position: fixed; bottom: 90px; left: 12px; right: 12px; z-index: 999;
-      background: rgba(20,10,5,0.85); color: #f5f0e6; border-radius: 12px;
+      background: rgba(20,10,5,0.9); color: #f5f0e6; border-radius: 12px;
       padding: 12px 16px; font-size: 13px; line-height: 1.5;
       border: 1px solid rgba(245,217,139,0.4);
-      display: none;
+      display: none; max-height: 40vh; overflow-y: auto;
     }
     #hint-box.show { display: block; }
     #hint-box b { color: #f5d98b; }
@@ -65,35 +75,75 @@
       z-index: 999; background: rgba(30,120,40,0.8); color: #fff;
       font-size: 11px; padding: 4px 10px; border-radius: 10px;
     }
+
+    /* Thumbnail foto 2D di kanan atas */
+    #photo-thumb {
+      position: fixed; top: 14px; right: 14px; z-index: 1000;
+      width: 64px; height: 64px; border-radius: 10px;
+      border: 2px solid #f5d98b; overflow: hidden;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+      cursor: pointer; display: none;
+    }
+    #photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+    /* Overlay foto membesar saat thumbnail diklik */
+    #photo-modal {
+      position: fixed; inset: 0; z-index: 2000; display: none;
+      background: rgba(0,0,0,0.9); align-items: center; justify-content: center;
+      padding: 24px;
+    }
+    #photo-modal.show { display: flex; }
+    #photo-modal img {
+      max-width: 100%; max-height: 85vh; border-radius: 8px;
+      border: 2px solid #f5d98b;
+    }
+    #photo-modal-close {
+      position: absolute; top: 20px; right: 20px;
+      background: #8a1f11; color: #f5d98b; border: 1px solid #f5d98b;
+      width: 36px; height: 36px; border-radius: 50%; font-size: 18px;
+      display: flex; align-items: center; justify-content: center;
+    }
   </style>
 </head>
 <body>
 
+  <div id="loading">
+    <div class="spinner"></div>
+    <div>Memuat model 3D...</div>
+  </div>
+
   <video id="camera-feed" autoplay playsinline muted></video>
+
   <div id="camera-error">
-    <div>
-      📷 Tidak bisa mengakses kamera.<br/><br/>
-      Pastikan situs ini dibuka lewat <b>HTTPS</b> dan izin kamera diaktifkan
-      di pengaturan browser, lalu muat ulang halaman.
-    </div>
+    📷 Tidak bisa mengakses kamera.<br/><br/>
+    Pastikan situs ini dibuka lewat <b>HTTPS</b> dan izin kamera diaktifkan
+    di pengaturan browser, lalu muat ulang halaman.
+  </div>
+
+  <div id="not-found">
+    ⚠️ QR Code tidak dikenali.<br/><br/>
+    ID lokasi tidak ditemukan dalam daftar. Periksa kembali data situs di
+    <code>SITES</code> pada file index.html.
   </div>
 
   <div id="overlay-top">
-    <h1>🏛️ JEJAKAR BALI</h1>
-    <p>Puputan Badung — Lapangan Puputan Badung, Denpasar</p>
+    <h1 id="site-title">🏛️ JEJAKAR BALI</h1>
+    <p id="site-subtitle">Memuat lokasi...</p>
   </div>
 
   <div id="status">✅ AR aktif</div>
 
-  <div id="hint-box">
-    <b>Puputan Badung (1906)</b><br/>
-    Puputan Badung adalah peristiwa perang habis-habisan Raja Badung beserta
-    rakyatnya melawan pasukan kolonial Belanda pada 20 September 1906.
-    Alih-alih menyerah, raja, keluarga, dan para pengikutnya memilih maju
-    berperang sampai titik darah penghabisan sebagai bentuk pembelaan
-    kehormatan dan tanah leluhur. Peristiwa ini menjadi simbol keberanian
-    dan harga diri masyarakat Bali yang dikenang hingga kini.
+  <!-- Thumbnail foto 2D, klik untuk membesar -->
+  <div id="photo-thumb" onclick="openPhoto()">
+    <img id="photo-thumb-img" src="" alt="Foto referensi" />
   </div>
+
+  <div id="photo-modal" onclick="closePhotoIfBackground(event)">
+    <div id="photo-modal-close" onclick="closePhoto()">✕</div>
+    <img id="photo-modal-img" src="" alt="Foto referensi diperbesar" />
+  </div>
+
+  <div id="hint-box"></div>
 
   <div id="controls">
     <button onclick="toggleInfo()">📖 Info Sejarah</button>
@@ -105,54 +155,140 @@
     vr-mode-ui="enabled: false"
     renderer="alpha: true; logarithmicDepthBuffer: true"
   >
-    <a-entity light="type: ambient; intensity: 0.8"></a-entity>
-    <a-entity light="type: directional; intensity: 0.6" position="1 2 1"></a-entity>
+    <a-assets timeout="10000"></a-assets>
 
-    <!-- Figur langsung muncul di depan kamera, tanpa perlu marker -->
-    <a-entity id="warrior-group" position="0 -0.3 -2.2">
+    <a-entity light="type: ambient; intensity: 0.9"></a-entity>
+    <a-entity light="type: directional; intensity: 0.7" position="1 2 1"></a-entity>
 
-      <a-entity
-        id="warrior"
-        animation="property: rotation; to: 0 360 0; loop: true; dur: 9000; easing: linear"
-      >
-        <!-- Kaki -->
-        <a-cylinder position="-0.12 -0.45 0" radius="0.06" height="0.7" color="#3b2a1a"></a-cylinder>
-        <a-cylinder position="0.12 -0.45 0" radius="0.06" height="0.7" color="#3b2a1a"></a-cylinder>
-
-        <!-- Badan / kain poleng -->
-        <a-box position="0 0.1 0" width="0.42" height="0.75" depth="0.24" color="#8a1f11"></a-box>
-        <a-box position="0 0.1 0.121" width="0.42" height="0.75" depth="0.01" color="#f5f0e6" opacity="0.9"></a-box>
-
-        <!-- Kepala -->
-        <a-sphere position="0 0.58 0" radius="0.19" color="#c98a5b"></a-sphere>
-
-        <!-- Ikat kepala / udeng -->
-        <a-cone position="0 0.78 0" radius-bottom="0.21" radius-top="0.03" height="0.2" color="#f5d98b"></a-cone>
-
-        <!-- Tangan -->
-        <a-cylinder position="-0.3 0.2 0" radius="0.045" height="0.48" rotation="0 0 25" color="#c98a5b"></a-cylinder>
-        <a-cylinder position="0.3 0.2 0" radius="0.045" height="0.48" rotation="0 0 -25" color="#c98a5b"></a-cylinder>
-
-        <!-- Keris -->
-        <a-box position="0.44 0.08 0" width="0.025" height="0.55" depth="0.025" color="#e0c25c" rotation="0 0 -20"></a-box>
-      </a-entity>
-
-      <!-- Panel judul melayang -->
-      <a-entity
-        position="0 1.35 0"
-        text="value: PUPUTAN BADUNG\n1906; align: center; width: 2.6; color: #f5d98b; font: exo2bold"
-        animation="property: position; to: 0 1.45 0; dir: alternate; loop: true; dur: 1500"
-      ></a-entity>
-
-    </a-entity>
+    <!-- Wadah tempat model/figur akan disisipkan lewat JavaScript -->
+    <a-entity id="content-anchor" position="0 -0.3 -2.4"></a-entity>
 
     <a-entity id="cam" camera look-controls="enabled: true" position="0 0 0"></a-entity>
   </a-scene>
 
   <script>
+    // =========================================================
+    // DAFTAR SITUS: tambahkan satu baris per lokasi/QR di sini.
+    // id        -> dipakai di URL: ?id=xxxx (harus unik, tanpa spasi)
+    // title     -> judul yang tampil melayang di atas objek
+    // subtitle  -> teks kecil di header atas
+    // model     -> path file .glb di folder /models/, atau null untuk
+    //              pakai figur prajurit bawaan (placeholder demo)
+    // scale     -> ukuran model, sesuaikan (mulai dari "1 1 1")
+    // yOffset   -> geser naik/turun model bila posisinya kurang pas
+    // narration -> teks yang dibacakan & ditampilkan di panel info
+    // =========================================================
+    const SITES = {
+      "puputan-badung": {
+        title: "PUPUTAN BADUNG\n1906",
+        subtitle: "Lapangan Puputan Badung, Denpasar",
+        model: null,
+        scale: "1 1 1",
+        yOffset: 0,
+        narration: "Puputan Badung adalah peristiwa perang habis-habisan Raja Badung beserta rakyatnya melawan pasukan kolonial Belanda pada 20 September 1906. Alih-alih menyerah, raja, keluarga, dan para pengikutnya memilih maju berperang sampai titik darah penghabisan sebagai bentuk pembelaan kehormatan dan tanah leluhur."
+      },
+      "patung-pahlawan": {
+        title: "PATUNG PAHLAWAN",
+        subtitle: "Contoh: ganti dengan nama situs asli",
+        model: "models/patung-pahlawan.glb",
+        scale: "0.6 0.6 0.6",
+        yOffset: 0,
+        narration: "Ganti teks ini dengan narasi sejarah patung pahlawan yang sesuai, lengkap dengan tokoh, tahun, dan makna perjuangannya."
+      },
+      "bangunan-contoh": {
+        title: "NAMA BANGUNAN",
+        subtitle: "Contoh: ganti dengan nama bangunan asli",
+        model: "models/bangunan-contoh.glb",
+        scale: "0.3 0.3 0.3",
+        yOffset: -0.5,
+        narration: "Ganti teks ini dengan narasi sejarah bangunan/pura yang sesuai."
+      },
+      "gusti-ngurah-made-agung": {
+        title: "I GUSTI NGURAH MADE AGUNG",
+        subtitle: "Lapangan Puputan Badung, Denpasar",
+        model: "models/gusti-ngurah-made-agung.glb",
+        scale: "1 1 1",
+        yOffset: 0,
+        photo: "images/gusti-ngurah-made-agung.jpeg",
+        narration: "I Gusti Ngurah Made Agung lahir 5 April 1876, dan pada 1902 dinobatkan sebagai Raja Badung. Saat Belanda menuntut ganti rugi atas insiden kapal Sri Komala, beliau menolak dan memilih melawan sampai titik darah penghabisan. Pada 20 September 1906 terjadilah Puputan Badung, perang habis-habisan yang menewaskan sekitar 1.000 orang termasuk sang raja, bangsawan, dan rakyatnya. Pada 2015 beliau dianugerahi gelar Pahlawan Nasional Indonesia, dan namanya diabadikan sebagai nama Lapangan Puputan Badung."
+      }
+    };
+
+    const params = new URLSearchParams(window.location.search);
+    const siteId = params.get('id') || 'puputan-badung';
+    const site = SITES[siteId];
+
+    const loadingEl = document.getElementById('loading');
+    const notFoundEl = document.getElementById('not-found');
+    const titleEl = document.getElementById('site-title');
+    const subtitleEl = document.getElementById('site-subtitle');
+    const hintBox = document.getElementById('hint-box');
+    const anchor = document.getElementById('content-anchor');
+
+    if (!site) {
+      loadingEl.style.display = 'none';
+      notFoundEl.style.display = 'flex';
+    } else {
+      titleEl.textContent = '🏛️ ' + site.title.split('\n')[0];
+      subtitleEl.textContent = site.subtitle || '';
+      hintBox.innerHTML = '<b>' + site.title.replace('\n', ' ') + '</b><br/>' + site.narration;
+
+      // Thumbnail foto 2D (kalau situs ini punya foto referensi)
+      if (site.photo) {
+        const thumb = document.getElementById('photo-thumb');
+        const thumbImg = document.getElementById('photo-thumb-img');
+        const modalImg = document.getElementById('photo-modal-img');
+        thumbImg.src = site.photo;
+        modalImg.src = site.photo;
+        thumb.style.display = 'block';
+      }
+
+      // Panel judul melayang (selalu ada)
+      const label = document.createElement('a-entity');
+      label.setAttribute('position', '0 1.35 0');
+      label.setAttribute('text', `value: ${site.title}; align: center; width: 2.6; color: #f5d98b; font: exo2bold`);
+      label.setAttribute('animation', 'property: position; to: 0 1.45 0; dir: alternate; loop: true; dur: 1500');
+      anchor.appendChild(label);
+
+      if (site.model) {
+        // Muat model 3D custom (.glb)
+        const modelEntity = document.createElement('a-entity');
+        modelEntity.setAttribute('gltf-model', `url(${site.model})`);
+        modelEntity.setAttribute('scale', site.scale || '1 1 1');
+        modelEntity.setAttribute('position', `0 ${site.yOffset || 0} 0`);
+        modelEntity.setAttribute('animation', 'property: rotation; to: 0 360 0; loop: true; dur: 10000; easing: linear');
+
+        modelEntity.addEventListener('model-loaded', () => {
+          loadingEl.style.display = 'none';
+        });
+        modelEntity.addEventListener('model-error', () => {
+          loadingEl.innerHTML = '<div style="color:#ff8080; padding:0 24px; text-align:center;">⚠️ Gagal memuat model 3D.<br/>Periksa apakah file "' + site.model + '" sudah diupload ke folder /models/.</div>';
+        });
+
+        anchor.appendChild(modelEntity);
+      } else {
+        // Figur placeholder bawaan (geometris) untuk demo tanpa aset custom
+        loadingEl.style.display = 'none';
+        const warrior = document.createElement('a-entity');
+        warrior.setAttribute('animation', 'property: rotation; to: 0 360 0; loop: true; dur: 9000; easing: linear');
+        warrior.innerHTML = `
+          <a-cylinder position="-0.12 -0.45 0" radius="0.06" height="0.7" color="#3b2a1a"></a-cylinder>
+          <a-cylinder position="0.12 -0.45 0" radius="0.06" height="0.7" color="#3b2a1a"></a-cylinder>
+          <a-box position="0 0.1 0" width="0.42" height="0.75" depth="0.24" color="#8a1f11"></a-box>
+          <a-box position="0 0.1 0.121" width="0.42" height="0.75" depth="0.01" color="#f5f0e6" opacity="0.9"></a-box>
+          <a-sphere position="0 0.58 0" radius="0.19" color="#c98a5b"></a-sphere>
+          <a-cone position="0 0.78 0" radius-bottom="0.21" radius-top="0.03" height="0.2" color="#f5d98b"></a-cone>
+          <a-cylinder position="-0.3 0.2 0" radius="0.045" height="0.48" rotation="0 0 25" color="#c98a5b"></a-cylinder>
+          <a-cylinder position="0.3 0.2 0" radius="0.045" height="0.48" rotation="0 0 -25" color="#c98a5b"></a-cylinder>
+          <a-box position="0.44 0.08 0" width="0.025" height="0.55" depth="0.025" color="#e0c25c" rotation="0 0 -20"></a-box>
+        `;
+        anchor.appendChild(warrior);
+      }
+    }
+
+    // Kamera
     const video = document.getElementById('camera-feed');
     const errorBox = document.getElementById('camera-error');
-
     navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
       .then((stream) => { video.srcObject = stream; })
       .catch((err) => {
@@ -161,7 +297,17 @@
       });
 
     function toggleInfo() {
-      document.getElementById('hint-box').classList.toggle('show');
+      hintBox.classList.toggle('show');
+    }
+
+    function openPhoto() {
+      document.getElementById('photo-modal').classList.add('show');
+    }
+    function closePhoto() {
+      document.getElementById('photo-modal').classList.remove('show');
+    }
+    function closePhotoIfBackground(e) {
+      if (e.target.id === 'photo-modal') closePhoto();
     }
 
     let utterance = null;
@@ -170,12 +316,12 @@
         speechSynthesis.cancel();
         return;
       }
-      const text = document.getElementById('hint-box').innerText;
-      utterance = new SpeechSynthesisUtterance(text);
+      if (!site) return;
+      utterance = new SpeechSynthesisUtterance(site.title.replace('\n',' ') + '. ' + site.narration);
       utterance.lang = 'id-ID';
       utterance.rate = 0.95;
       speechSynthesis.speak(utterance);
-      document.getElementById('hint-box').classList.add('show');
+      hintBox.classList.add('show');
     }
   </script>
 
