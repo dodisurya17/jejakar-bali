@@ -6,181 +6,316 @@
   <title>JEJAKAR BALI</title>
 
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
 
   <style>
+    :root {
+      --ink: #15120f;
+      --panel: #211c17e6;
+      --panel-solid: #211c17;
+      --panel-2: #2b241d;
+      --brass: #c7a15c;
+      --brass-soft: #d9bd85;
+      --brass-deep: #8c6a32;
+      --ember: #9c3f2c;
+      --cream: #f4ecdd;
+      --cream-dim: rgba(244, 236, 221, 0.64);
+      --hairline: rgba(199, 161, 92, 0.28);
+    }
+
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body {
       overflow: hidden; height: 100%;
-      touch-action: none; /* cegah zoom bawaan browser, supaya pinch-zoom custom kita yang jalan */
+      touch-action: none;
     }
     body {
-      font-family: -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
-      background: #0a1a26;
+      font-family: 'Manrope', -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+      background: var(--ink);
+      color: var(--cream);
     }
 
     #camera-feed {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      object-fit: cover; z-index: 0; touch-action: none;
+      object-fit: cover; z-index: 0; touch-action: none; filter: saturate(1.04) contrast(1.02);
     }
+
+    /* subtle vignette so overlay text always reads over any footage */
+    #vignette {
+      position: fixed; inset: 0; z-index: 1; pointer-events: none;
+      background:
+        linear-gradient(180deg, rgba(21,18,15,0.55) 0%, rgba(21,18,15,0) 18%, rgba(21,18,15,0) 62%, rgba(21,18,15,0.72) 100%);
+    }
+
     a-scene {
       position: fixed !important; top: 0; left: 0; width: 100%; height: 100%;
-      z-index: 1; background: transparent !important; touch-action: none;
+      z-index: 2; background: transparent !important; touch-action: none;
     }
     canvas { touch-action: none; }
 
-    #camera-error, #not-found {
-      position: fixed; inset: 0; z-index: 5; display: none;
-      background: #eaf6ff; color: #0a3a53; align-items: center; justify-content: center;
-      text-align: center; padding: 24px; font-size: 14px; line-height: 1.6;
+    /* ===== Full-screen state panels (loading / errors) ===== */
+    #loading, #camera-error, #not-found {
+      position: fixed; inset: 0; z-index: 50; display: none;
+      align-items: center; justify-content: center; padding: 28px;
+      background: radial-gradient(120% 100% at 50% 20%, #241f19 0%, var(--ink) 70%);
     }
-    #loading {
-      position: fixed; inset: 0; z-index: 6; display: flex;
-      background: #eaf6ff; color: #2f8fc7; align-items: center; justify-content: center;
-      text-align: center; font-size: 14px; flex-direction: column; gap: 12px;
+    #loading { display: flex; }
+
+    .state-card {
+      width: 100%; max-width: 340px; text-align: center;
+      display: flex; flex-direction: column; align-items: center; gap: 14px;
     }
-    .spinner {
-      width: 32px; height: 32px; border: 3px solid rgba(79,168,216,0.25);
-      border-top-color: #4fa8d8; border-radius: 50%; animation: spin 0.9s linear infinite;
+    .state-icon {
+      width: 46px; height: 46px; border-radius: 50%;
+      border: 1px solid var(--hairline);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 19px; color: var(--brass-soft);
+      background: var(--panel-2);
+    }
+    .state-title {
+      font-family: 'Fraunces', serif; font-weight: 600; font-size: 18px;
+      color: var(--cream); letter-spacing: 0.2px;
+    }
+    .state-body {
+      font-size: 13px; line-height: 1.65; color: var(--cream-dim);
+    }
+    .state-body code {
+      color: var(--brass-soft); font-family: inherit; font-weight: 700;
+    }
+
+    .ring-spinner {
+      width: 38px; height: 38px; border-radius: 50%;
+      border: 2.5px solid rgba(199, 161, 92, 0.18);
+      border-top-color: var(--brass);
+      animation: spin 0.85s cubic-bezier(0.5, 0.1, 0.5, 0.9) infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ===== Header ===== */
-    #overlay-top {
-      position: fixed; top: 0; left: 0; right: 0; z-index: 999;
-      background: linear-gradient(180deg, rgba(10,30,50,0.55) 0%, rgba(10,30,50,0.15) 70%, transparent 100%);
-      padding: 16px 96px 26px 18px; /* padding kanan diberi ruang utk thumbnail foto */
+    /* ===== Top chrome ===== */
+    #topbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 20;
+      padding: 18px 18px 0 20px;
+      display: flex; align-items: flex-start; justify-content: space-between;
       pointer-events: none;
     }
-    #overlay-top h1 {
-      color: #eaf6ff; font-size: 16px; font-weight: 600; letter-spacing: 0.3px;
-      text-shadow: 0 1px 4px rgba(0,0,0,0.5);
-      display: flex; align-items: center; gap: 6px; line-height: 1.3;
+    .brandmark {
+      display: flex; flex-direction: column; gap: 5px;
     }
-    #overlay-top p {
-      color: #cfe9fa; font-size: 11.5px; margin-top: 4px; opacity: 0.95;
-      text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    .brandmark .wordmark {
+      font-family: 'Fraunces', serif; font-style: italic; font-weight: 500;
+      font-size: 15px; color: var(--cream); text-shadow: 0 1px 6px rgba(0,0,0,0.5);
+      letter-spacing: 0.2px;
     }
-
-    /* ===== Status badge ===== */
-    #status {
-      position: fixed; top: 78px; left: 18px; z-index: 999;
-      background: rgba(255,255,255,0.85); color: #1b7a4d;
-      font-size: 10.5px; font-weight: 600; padding: 5px 12px; border-radius: 20px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-      backdrop-filter: blur(4px);
+    .ar-status {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 10.5px; font-weight: 600; color: var(--cream-dim);
+    }
+    .ar-status .dot {
+      width: 6px; height: 6px; border-radius: 50%; background: #6fbf8f;
+      box-shadow: 0 0 0 3px rgba(111,191,143,0.22);
     }
 
-    /* ===== Thumbnail foto 2D ===== */
+    /* ===== Photo thumbnail (engraved medallion) ===== */
     #photo-thumb {
-      position: fixed; top: 16px; right: 16px; z-index: 1000;
-      width: 58px; height: 58px; border-radius: 14px;
-      border: 2px solid rgba(255,255,255,0.9); overflow: hidden;
-      box-shadow: 0 3px 12px rgba(0,0,0,0.35);
-      cursor: pointer; display: none;
+      pointer-events: auto;
+      width: 52px; height: 52px; border-radius: 50%;
+      border: 1.5px solid var(--brass);
+      box-shadow: 0 0 0 3px rgba(21,18,15,0.55), 0 6px 16px rgba(0,0,0,0.45);
+      overflow: hidden; display: none; cursor: pointer;
     }
-    #photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    #photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
     #photo-modal {
-      position: fixed; inset: 0; z-index: 2000; display: none;
-      background: rgba(10,30,50,0.92); align-items: center; justify-content: center;
-      padding: 24px;
+      position: fixed; inset: 0; z-index: 200; display: none;
+      background: rgba(15,12,9,0.94); align-items: center; justify-content: center;
+      padding: 28px;
     }
     #photo-modal.show { display: flex; }
-    #photo-modal img {
-      max-width: 100%; max-height: 85vh; border-radius: 12px;
-      border: 2px solid rgba(255,255,255,0.9);
-      box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    .photo-frame {
+      position: relative; max-width: 100%; max-height: 82vh;
+      border: 1.5px solid var(--brass); border-radius: 4px;
+      padding: 8px; background: var(--panel-solid);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.55);
+    }
+    .photo-frame img {
+      display: block; max-width: 100%; max-height: 74vh; border-radius: 2px;
     }
     #photo-modal-close {
-      position: absolute; top: 22px; right: 22px;
-      background: #ffffff; color: #2f8fc7; border: none;
-      width: 38px; height: 38px; border-radius: 50%; font-size: 18px;
+      position: absolute; top: -16px; right: -16px;
+      background: var(--brass); color: var(--ink); border: none;
+      width: 34px; height: 34px; border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+    }
+    #photo-modal-close svg { width: 14px; height: 14px; }
+
+    /* ===== Zoom toast ===== */
+    #zoom-toast {
+      position: fixed; top: 66px; left: 50%; transform: translateX(-50%);
+      z-index: 19; background: var(--panel); color: var(--cream-dim);
+      font-size: 11px; font-weight: 600; padding: 7px 14px; border-radius: 20px;
+      border: 1px solid var(--hairline); backdrop-filter: blur(8px);
+      opacity: 1; transition: opacity 0.5s ease, transform 0.5s ease;
+      pointer-events: none; white-space: nowrap;
+    }
+    #zoom-toast.hide { opacity: 0; transform: translateX(-50%) translateY(-6px); }
+
+    /* ===== Bottom placard / sheet ===== */
+    #sheet {
+      position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 25;
+      background: var(--panel); backdrop-filter: blur(10px);
+      border: 1px solid var(--hairline); border-radius: 18px;
+      box-shadow: 0 -8px 30px rgba(0,0,0,0.35), 0 12px 30px rgba(0,0,0,0.35);
+      overflow: hidden;
+      max-height: 116px;
+      transition: max-height 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    #sheet.expanded { max-height: 62vh; }
+
+    #sheet-handle {
+      padding: 14px 74px 14px 18px; cursor: pointer;
+      position: relative;
+    }
+    #sheet-handle::before {
+      content: ''; position: absolute; top: 7px; left: 50%; transform: translateX(-50%);
+      width: 34px; height: 3px; border-radius: 3px; background: var(--hairline);
+    }
+    .sheet-eyebrow {
+      font-size: 10px; font-weight: 700; color: var(--brass-soft);
+      letter-spacing: 0.4px; margin-top: 6px;
+    }
+    .sheet-title {
+      font-family: 'Fraunces', serif; font-weight: 600; font-size: 18px;
+      color: var(--cream); line-height: 1.25; margin-top: 3px;
+      white-space: pre-line;
+    }
+    .sheet-subtitle {
+      font-size: 12px; color: var(--cream-dim); margin-top: 4px;
+    }
+    .sheet-chevron {
+      position: absolute; right: 18px; top: 50%; transform: translateY(-50%);
+      width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--hairline);
+      display: flex; align-items: center; justify-content: center;
+      transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    #sheet.expanded .sheet-chevron { transform: translateY(-50%) rotate(180deg); }
+    .sheet-chevron svg { width: 12px; height: 12px; stroke: var(--brass-soft); }
+
+    #sheet-body {
+      padding: 0 18px 20px 18px;
+      font-size: 13.5px; line-height: 1.75; color: var(--cream-dim);
+      max-height: calc(62vh - 76px); overflow-y: auto;
+      border-top: 1px solid var(--hairline); margin-top: 2px; padding-top: 14px;
     }
 
-    /* ===== Info panel ===== */
-    #hint-box {
-      position: fixed; bottom: 96px; left: 14px; right: 14px; z-index: 999;
-      background: rgba(255,255,255,0.95); color: #0a3a53; border-radius: 16px;
-      padding: 16px 18px; font-size: 13px; line-height: 1.55;
-      box-shadow: 0 6px 24px rgba(0,0,0,0.25);
-      display: none; max-height: 38vh; overflow-y: auto;
-      backdrop-filter: blur(6px);
+    /* ===== Narration FAB ===== */
+    #narration-fab {
+      position: fixed; right: 18px; bottom: 132px; z-index: 26;
+      width: 56px; height: 56px; border-radius: 50%; border: none;
+      background: radial-gradient(120% 120% at 30% 25%, var(--brass-soft), var(--brass) 55%, var(--brass-deep) 100%);
+      box-shadow: 0 10px 26px rgba(140, 106, 50, 0.4), 0 2px 6px rgba(0,0,0,0.3);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--ink);
+      transition: bottom 0.38s cubic-bezier(0.22, 1, 0.36, 1), transform 0.15s ease;
     }
-    #hint-box.show { display: block; }
-    #hint-box b { color: #2f8fc7; font-size: 14px; }
+    #narration-fab:active { transform: scale(0.93); }
+    #narration-fab svg { width: 22px; height: 22px; }
+    #narration-fab.playing {
+      background: radial-gradient(120% 120% at 30% 25%, #c96b56, var(--ember) 60%, #6f2a1c 100%);
+      box-shadow: 0 10px 26px rgba(156, 63, 44, 0.45), 0 2px 6px rgba(0,0,0,0.3);
+    }
+    #sheet.expanded ~ #narration-fab { bottom: calc(62vh + 24px); }
 
-    /* ===== Bottom controls ===== */
-    #controls {
-      position: fixed; bottom: 18px; left: 0; right: 0; z-index: 999;
-      display: flex; justify-content: center; gap: 10px; padding: 0 14px;
+    @keyframes pulse-ring {
+      0% { box-shadow: 0 0 0 0 rgba(156, 63, 44, 0.45); }
+      100% { box-shadow: 0 0 0 14px rgba(156, 63, 44, 0); }
     }
-    #controls button {
-      background: rgba(255,255,255,0.95); color: #2f8fc7; border: none;
-      padding: 11px 20px; border-radius: 24px; font-size: 12.5px;
-      font-weight: 600; box-shadow: 0 3px 14px rgba(0,0,0,0.25);
-      display: flex; align-items: center; gap: 6px;
+    #narration-fab.playing::after {
+      content: ''; position: absolute; inset: 0; border-radius: 50%;
+      animation: pulse-ring 1.6s ease-out infinite;
     }
-    #controls button:active { transform: scale(0.95); }
-
-    /* ===== Hint zoom (muncul sebentar lalu hilang) ===== */
-    #zoom-hint {
-      position: fixed; bottom: 74px; left: 50%; transform: translateX(-50%);
-      z-index: 998; background: rgba(255,255,255,0.9); color: #2f8fc7;
-      font-size: 11px; font-weight: 600; padding: 6px 14px; border-radius: 16px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-      opacity: 1; transition: opacity 0.6s ease;
-      pointer-events: none;
-    }
-    #zoom-hint.hide { opacity: 0; }
   </style>
 </head>
 <body>
 
   <div id="loading">
-    <div class="spinner"></div>
-    <div>Memuat model 3D...</div>
+    <div class="state-card">
+      <div class="ring-spinner"></div>
+      <div class="state-title">Menyiapkan pengalaman AR</div>
+      <div class="state-body">Memuat model tiga dimensi&nbsp;&hellip;</div>
+    </div>
   </div>
 
   <video id="camera-feed" autoplay playsinline muted></video>
+  <div id="vignette"></div>
 
   <div id="camera-error">
-    📷 Tidak bisa mengakses kamera.<br/><br/>
-    Pastikan situs ini dibuka lewat <b>HTTPS</b> dan izin kamera diaktifkan
-    di pengaturan browser, lalu muat ulang halaman.
+    <div class="state-card">
+      <div class="state-icon">📷</div>
+      <div class="state-title">Kamera tidak dapat diakses</div>
+      <div class="state-body">
+        Pastikan situs ini dibuka lewat <code>HTTPS</code> dan izin kamera
+        sudah diaktifkan di pengaturan browser, lalu muat ulang halaman.
+      </div>
+    </div>
   </div>
 
   <div id="not-found">
-    ⚠️ QR Code tidak dikenali.<br/><br/>
-    ID lokasi tidak ditemukan dalam daftar. Periksa kembali data situs di
-    <code>SITES</code> pada file index.html.
+    <div class="state-card">
+      <div class="state-icon">⚠️</div>
+      <div class="state-title">QR tidak dikenali</div>
+      <div class="state-body">
+        ID lokasi tidak ditemukan dalam daftar. Periksa kembali data situs
+        pada <code>SITES</code> di file index.html.
+      </div>
+    </div>
   </div>
 
-  <div id="overlay-top">
-    <h1 id="site-title">🏛️ JEJAKAR BALI</h1>
-    <p id="site-subtitle">Memuat lokasi...</p>
-  </div>
-
-  <div id="status">✅ AR aktif</div>
-
-  <div id="photo-thumb" onclick="openPhoto()">
-    <img id="photo-thumb-img" src="" alt="Foto referensi" />
+  <div id="topbar">
+    <div class="brandmark">
+      <div class="wordmark">Jejakar Bali</div>
+      <div class="ar-status"><span class="dot"></span><span>AR aktif</span></div>
+    </div>
+    <div id="photo-thumb" onclick="openPhoto()">
+      <img id="photo-thumb-img" src="" alt="Foto referensi" />
+    </div>
   </div>
 
   <div id="photo-modal" onclick="closePhotoIfBackground(event)">
-    <div id="photo-modal-close" onclick="closePhoto()">✕</div>
-    <img id="photo-modal-img" src="" alt="Foto referensi diperbesar" />
+    <div class="photo-frame">
+      <img id="photo-modal-img" src="" alt="Foto referensi diperbesar" />
+      <button id="photo-modal-close" onclick="closePhoto()" aria-label="Tutup">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
   </div>
 
-  <div id="zoom-hint">🤏 Cubit layar dengan 2 jari untuk zoom</div>
+  <div id="zoom-toast">🤏&nbsp; Cubit dua jari untuk memperbesar</div>
 
-  <div id="hint-box"></div>
-
-  <div id="controls">
-    <button onclick="toggleInfo()">📖 Info Sejarah</button>
-    <button onclick="toggleNarration()">🔊 Dengar Narasi</button>
+  <div id="sheet">
+    <div id="sheet-handle" onclick="toggleSheet()">
+      <div class="sheet-eyebrow">Situs Sejarah</div>
+      <div class="sheet-title" id="sheet-title">Memuat&hellip;</div>
+      <div class="sheet-subtitle" id="sheet-subtitle"></div>
+      <div class="sheet-chevron">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+    </div>
+    <div id="sheet-body"></div>
   </div>
+
+  <button id="narration-fab" onclick="toggleNarration()" aria-label="Dengarkan narasi">
+    <svg id="fab-icon-speaker" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="4,9 8,9 13,4 13,20 8,15 4,15" fill="currentColor" stroke="none"></polygon>
+      <path d="M16 8.5a5 5 0 0 1 0 7"></path>
+      <path d="M18.5 6a8.5 8.5 0 0 1 0 12"></path>
+    </svg>
+    <svg id="fab-icon-pause" viewBox="0 0 24 24" fill="currentColor" style="display:none;">
+      <rect x="6" y="5" width="4" height="14" rx="1"></rect>
+      <rect x="14" y="5" width="4" height="14" rx="1"></rect>
+    </svg>
+  </button>
 
   <a-scene
     embedded
@@ -254,9 +389,9 @@
 
     const loadingEl = document.getElementById('loading');
     const notFoundEl = document.getElementById('not-found');
-    const titleEl = document.getElementById('site-title');
-    const subtitleEl = document.getElementById('site-subtitle');
-    const hintBox = document.getElementById('hint-box');
+    const sheetTitleEl = document.getElementById('sheet-title');
+    const sheetSubtitleEl = document.getElementById('sheet-subtitle');
+    const sheetBodyEl = document.getElementById('sheet-body');
     const objectContainer = document.getElementById('object-container');
     const floatingLabel = document.getElementById('floating-label');
 
@@ -266,9 +401,9 @@
       loadingEl.style.display = 'none';
       notFoundEl.style.display = 'flex';
     } else {
-      titleEl.innerHTML = '🏛️ ' + site.title.split('\n')[0];
-      subtitleEl.textContent = site.subtitle || '';
-      hintBox.innerHTML = '<b>' + site.title.replace('\n', ' ') + '</b><br/>' + site.narration;
+      sheetTitleEl.textContent = site.title;
+      sheetSubtitleEl.textContent = site.subtitle || '';
+      sheetBodyEl.textContent = site.narration;
 
       baseScale = (site.scale || '1 1 1').split(' ').map(Number);
 
@@ -281,7 +416,7 @@
         thumb.style.display = 'block';
       }
 
-      floatingLabel.setAttribute('text', `value: ${site.title}; align: center; width: 2.6; color: #eaf6ff; font: exo2bold`);
+      floatingLabel.setAttribute('text', `value: ${site.title}; align: center; width: 2.6; color: #f4ecdd; font: exo2bold`);
 
       if (site.model) {
         const modelEntity = document.createElement('a-entity');
@@ -293,7 +428,7 @@
           loadingEl.style.display = 'none';
         });
         modelEntity.addEventListener('model-error', () => {
-          loadingEl.innerHTML = '<div style="color:#c0392b; padding:0 24px; text-align:center;">⚠️ Gagal memuat model 3D.<br/>Periksa apakah file "' + site.model + '" sudah diupload ke folder /models/.</div>';
+          loadingEl.innerHTML = '<div class="state-card"><div class="state-icon">⚠️</div><div class="state-title">Gagal memuat model 3D</div><div class="state-body">Periksa apakah file <code>' + site.model + '</code> sudah diupload ke folder /models/.</div></div>';
         });
 
         objectContainer.appendChild(modelEntity);
@@ -305,10 +440,10 @@
         warrior.innerHTML = `
           <a-cylinder position="-0.12 -0.45 0" radius="0.06" height="0.7" color="#3b2a1a"></a-cylinder>
           <a-cylinder position="0.12 -0.45 0" radius="0.06" height="0.7" color="#3b2a1a"></a-cylinder>
-          <a-box position="0 0.1 0" width="0.42" height="0.75" depth="0.24" color="#4fa8d8"></a-box>
-          <a-box position="0 0.1 0.121" width="0.42" height="0.75" depth="0.01" color="#eaf6ff" opacity="0.9"></a-box>
+          <a-box position="0 0.1 0" width="0.42" height="0.75" depth="0.24" color="#c7a15c"></a-box>
+          <a-box position="0 0.1 0.121" width="0.42" height="0.75" depth="0.01" color="#f4ecdd" opacity="0.9"></a-box>
           <a-sphere position="0 0.58 0" radius="0.19" color="#c98a5b"></a-sphere>
-          <a-cone position="0 0.78 0" radius-bottom="0.21" radius-top="0.03" height="0.2" color="#eaf6ff"></a-cone>
+          <a-cone position="0 0.78 0" radius-bottom="0.21" radius-top="0.03" height="0.2" color="#f4ecdd"></a-cone>
           <a-cylinder position="-0.3 0.2 0" radius="0.045" height="0.48" rotation="0 0 25" color="#c98a5b"></a-cylinder>
           <a-cylinder position="0.3 0.2 0" radius="0.045" height="0.48" rotation="0 0 -25" color="#c98a5b"></a-cylinder>
           <a-box position="0.44 0.08 0" width="0.025" height="0.55" depth="0.025" color="#dcdcdc" rotation="0 0 -20"></a-box>
@@ -329,10 +464,12 @@
         errorBox.style.display = 'flex';
       });
 
-    function toggleInfo() {
-      hintBox.classList.toggle('show');
+    // ===== Bottom sheet (plakat sejarah) =====
+    function toggleSheet() {
+      document.getElementById('sheet').classList.toggle('expanded');
     }
 
+    // ===== Foto referensi =====
     function openPhoto() {
       document.getElementById('photo-modal').classList.add('show');
     }
@@ -343,18 +480,33 @@
       if (e.target.id === 'photo-modal') closePhoto();
     }
 
+    // ===== Narasi suara =====
+    const fab = document.getElementById('narration-fab');
+    const iconSpeaker = document.getElementById('fab-icon-speaker');
+    const iconPause = document.getElementById('fab-icon-pause');
     let utterance = null;
+
+    function setFabPlaying(isPlaying) {
+      fab.classList.toggle('playing', isPlaying);
+      iconSpeaker.style.display = isPlaying ? 'none' : 'block';
+      iconPause.style.display = isPlaying ? 'block' : 'none';
+    }
+
     function toggleNarration() {
       if (utterance && speechSynthesis.speaking) {
         speechSynthesis.cancel();
+        setFabPlaying(false);
         return;
       }
       if (!site) return;
-      utterance = new SpeechSynthesisUtterance(site.title.replace('\n',' ') + '. ' + site.narration);
+      utterance = new SpeechSynthesisUtterance(site.title.replace('\n', ' ') + '. ' + site.narration);
       utterance.lang = 'id-ID';
       utterance.rate = 0.95;
+      utterance.onend = () => setFabPlaying(false);
+      utterance.onerror = () => setFabPlaying(false);
       speechSynthesis.speak(utterance);
-      hintBox.classList.add('show');
+      setFabPlaying(true);
+      document.getElementById('sheet').classList.add('expanded');
     }
 
     // ===== Pinch-to-zoom (2 jari) untuk memperbesar/perkecil objek 3D =====
@@ -397,10 +549,10 @@
       if (e.touches.length < 2) pinchStartDistance = null;
     });
 
-    // Hint zoom hilang otomatis setelah 4 detik, atau begitu user mulai pinch
-    setTimeout(() => document.getElementById('zoom-hint').classList.add('hide'), 4000);
+    // Toast zoom hilang otomatis setelah 4 detik, atau begitu user mulai pinch
+    setTimeout(() => document.getElementById('zoom-toast').classList.add('hide'), 4000);
     window.addEventListener('touchstart', (e) => {
-      if (e.touches.length === 2) document.getElementById('zoom-hint').classList.add('hide');
+      if (e.touches.length === 2) document.getElementById('zoom-toast').classList.add('hide');
     }, { once: true });
   </script>
 
