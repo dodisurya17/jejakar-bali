@@ -128,27 +128,77 @@
 
     #photo-modal {
       position: fixed; inset: 0; z-index: 200; display: none;
-      background: rgba(15,12,9,0.94); align-items: center; justify-content: center;
-      padding: 28px;
+      background: rgba(12,10,8,0.92); backdrop-filter: blur(6px);
+      align-items: center; justify-content: center;
+      padding: 24px;
     }
     #photo-modal.show { display: flex; }
-    .photo-frame {
-      position: relative; max-width: 100%; max-height: 82vh;
-      border: 1.5px solid var(--brass); border-radius: 4px;
-      padding: 8px; background: var(--panel-solid);
-      box-shadow: 0 20px 60px rgba(0,0,0,0.55);
+
+    /* ===== Carousel (7 foto referensi) ===== */
+    .carousel-frame {
+      position: relative; width: 100%; max-width: 420px;
+      background: var(--panel-solid);
+      border: 1px solid var(--hairline); border-radius: 20px;
+      padding: 14px 14px 46px 14px;
+      box-shadow: 0 24px 70px rgba(0,0,0,0.55);
     }
-    .photo-frame img {
-      display: block; max-width: 100%; max-height: 74vh; border-radius: 2px;
+    .carousel-viewport {
+      position: relative; width: 100%; overflow: hidden;
+      border-radius: 14px; background: #0e0c0a;
+      aspect-ratio: 4 / 5;
+    }
+    .carousel-track {
+      display: flex; height: 100%;
+      transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+      touch-action: pan-y;
+    }
+    .carousel-slide {
+      flex: 0 0 100%; height: 100%;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .carousel-slide img {
+      width: 100%; height: 100%; object-fit: cover; display: block;
     }
     #photo-modal-close {
-      position: absolute; top: -16px; right: -16px;
+      position: absolute; top: -14px; right: -14px; z-index: 2;
       background: var(--brass); color: var(--ink); border: none;
       width: 34px; height: 34px; border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
       box-shadow: 0 4px 14px rgba(0,0,0,0.4);
     }
     #photo-modal-close svg { width: 14px; height: 14px; }
+
+    .carousel-nav {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      width: 38px; height: 38px; border-radius: 50%; border: none;
+      background: rgba(21,18,15,0.55); backdrop-filter: blur(6px);
+      color: var(--cream); display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+    }
+    .carousel-nav svg { width: 18px; height: 18px; }
+    .carousel-nav.prev { left: 24px; }
+    .carousel-nav.next { right: 24px; }
+    .carousel-nav:active { transform: translateY(-50%) scale(0.9); }
+
+    .carousel-counter {
+      position: absolute; top: 24px; right: 26px;
+      font-size: 10.5px; font-weight: 700; letter-spacing: 0.3px;
+      color: var(--cream); background: rgba(21,18,15,0.55); backdrop-filter: blur(6px);
+      padding: 4px 9px; border-radius: 20px;
+    }
+
+    .carousel-dots {
+      position: absolute; left: 0; right: 0; bottom: 16px;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .carousel-dots .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: rgba(244, 236, 221, 0.3); transition: all 0.25s ease;
+      cursor: pointer;
+    }
+    .carousel-dots .dot.active {
+      width: 16px; border-radius: 4px; background: var(--brass);
+    }
 
     /* ===== Zoom toast ===== */
     #zoom-toast {
@@ -283,15 +333,25 @@
   </div>
 
   <div id="photo-modal" onclick="closePhotoIfBackground(event)">
-    <div class="photo-frame">
-      <img id="photo-modal-img" src="" alt="Foto referensi diperbesar" />
+    <div class="carousel-frame" onclick="event.stopPropagation()">
       <button id="photo-modal-close" onclick="closePhoto()" aria-label="Tutup">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
       </button>
+      <div class="carousel-viewport" id="carousel-viewport">
+        <div class="carousel-track" id="carousel-track"></div>
+      </div>
+      <button class="carousel-nav prev" onclick="carouselPrev()" aria-label="Sebelumnya">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <button class="carousel-nav next" onclick="carouselNext()" aria-label="Berikutnya">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+      </button>
+      <div class="carousel-counter" id="carousel-counter"></div>
+      <div class="carousel-dots" id="carousel-dots"></div>
     </div>
   </div>
 
-  <div id="zoom-toast">🤏&nbsp; Cubit dua jari untuk memperbesar</div>
+  <div id="zoom-toast">✋&nbsp; 1 jari putar &nbsp;·&nbsp; 2 jari geser &nbsp;·&nbsp; cubit untuk zoom</div>
 
   <div id="sheet">
     <div id="sheet-handle" onclick="toggleSheet()">
@@ -324,23 +384,28 @@
   >
     <a-assets timeout="10000"></a-assets>
 
-    <a-entity light="type: ambient; intensity: 0.9"></a-entity>
-    <a-entity light="type: directional; intensity: 0.7" position="1 2 1"></a-entity>
+    <a-entity light="type: ambient; intensity: 1.35; color: #fff6e6"></a-entity>
+    <a-entity light="type: hemisphere; color: #fff4de; groundColor: #6b5636; intensity: 0.85"></a-entity>
+    <a-entity light="type: directional; intensity: 0.85; color: #fff2dd" position="1 2 1"></a-entity>
+    <a-entity light="type: directional; intensity: 0.5; color: #ffe8c9" position="-1.5 1 -1"></a-entity>
 
     <a-entity id="content-anchor" position="0 -0.3 -2.4">
-      <!-- Objek 3D/figur ditaruh di dalam sini, terpisah dari label supaya
-           bisa di-zoom sendiri tanpa mengubah ukuran teks judul -->
-      <a-entity id="object-container" scale="1 1 1"></a-entity>
+      <!-- gesture-group menangani PAN (2 jari): objek + judul bergerak bersama -->
+      <a-entity id="gesture-group" position="0 0 0">
+        <!-- object-container menangani ROTATE (1 jari) & ZOOM (cubit),
+             terpisah dari label supaya teks judul tidak ikut berputar/berubah ukuran -->
+        <a-entity id="object-container" scale="1 1 1" rotation="0 0 0"></a-entity>
 
-      <!-- Panel judul melayang (ukurannya tetap, tidak ikut zoom) -->
-      <a-entity
-        id="floating-label"
-        position="0 1.35 0"
-        animation="property: position; to: 0 1.45 0; dir: alternate; loop: true; dur: 1500"
-      ></a-entity>
+        <!-- Panel judul melayang (ukurannya tetap, tidak ikut zoom/rotate) -->
+        <a-entity
+          id="floating-label"
+          position="0 1.35 0"
+          animation="property: position; to: 0 1.45 0; dir: alternate; loop: true; dur: 1500"
+        ></a-entity>
+      </a-entity>
     </a-entity>
 
-    <a-entity id="cam" camera look-controls="enabled: true" position="0 0 0"></a-entity>
+    <a-entity id="cam" camera look-controls="enabled: false" position="0 0 0"></a-entity>
   </a-scene>
 
   <script>
@@ -379,6 +444,15 @@
         scale: "1 1 1",
         yOffset: 0,
         photo: "images/gusti-ngurah-made-agung.jpeg",
+        photos: [
+          "images/gusti-ngurah-made-agung.jpeg",
+          "images/1.jpg",
+          "images/2.jpg",
+          "images/3.jpg",
+          "images/4.jpg",
+          "images/5.jpg",
+          "images/6.jpg"
+        ],
         narration: "I Gusti Ngurah Made Agung lahir 5 April 1876, dan pada 1902 dinobatkan sebagai Raja Badung. Saat Belanda menuntut ganti rugi atas insiden kapal Sri Komala, beliau menolak dan memilih melawan sampai titik darah penghabisan. Pada 20 September 1906 terjadilah Puputan Badung, perang habis-habisan yang menewaskan sekitar 1.000 orang termasuk sang raja, bangsawan, dan rakyatnya. Pada 2015 beliau dianugerahi gelar Pahlawan Nasional Indonesia, dan namanya diabadikan sebagai nama Lapangan Puputan Badung."
       }
     };
@@ -407,13 +481,13 @@
 
       baseScale = (site.scale || '1 1 1').split(' ').map(Number);
 
-      if (site.photo) {
+      const photoList = (site.photos && site.photos.length) ? site.photos : (site.photo ? [site.photo] : []);
+      if (photoList.length) {
         const thumb = document.getElementById('photo-thumb');
         const thumbImg = document.getElementById('photo-thumb-img');
-        const modalImg = document.getElementById('photo-modal-img');
-        thumbImg.src = site.photo;
-        modalImg.src = site.photo;
+        thumbImg.src = photoList[0];
         thumb.style.display = 'block';
+        buildCarousel(photoList);
       }
 
       floatingLabel.setAttribute('text', `value: ${site.title}; align: center; width: 2.6; color: #f4ecdd; font: exo2bold`);
@@ -422,7 +496,6 @@
         const modelEntity = document.createElement('a-entity');
         modelEntity.setAttribute('gltf-model', `url(${site.model})`);
         modelEntity.setAttribute('position', `0 ${site.yOffset || 0} 0`);
-        modelEntity.setAttribute('animation', 'property: rotation; to: 0 360 0; loop: true; dur: 10000; easing: linear');
 
         modelEntity.addEventListener('model-loaded', () => {
           loadingEl.style.display = 'none';
@@ -436,7 +509,6 @@
         loadingEl.style.display = 'none';
         const warrior = document.createElement('a-entity');
         warrior.setAttribute('position', `0 ${site.yOffset || 0} 0`);
-        warrior.setAttribute('animation', 'property: rotation; to: 0 360 0; loop: true; dur: 9000; easing: linear');
         warrior.innerHTML = `
           <a-cylinder position="-0.12 -0.45 0" radius="0.06" height="0.7" color="#3b2a1a"></a-cylinder>
           <a-cylinder position="0.12 -0.45 0" radius="0.06" height="0.7" color="#3b2a1a"></a-cylinder>
@@ -469,8 +541,55 @@
       document.getElementById('sheet').classList.toggle('expanded');
     }
 
-    // ===== Foto referensi =====
+    // ===== Foto referensi (carousel, hingga 7 gambar) =====
+    let carouselPhotos = [];
+    let carouselIndex = 0;
+
+    function buildCarousel(photos) {
+      carouselPhotos = photos;
+      carouselIndex = 0;
+      const track = document.getElementById('carousel-track');
+      track.innerHTML = photos.map((src) =>
+        `<div class="carousel-slide"><img src="${src}" alt="Foto referensi" loading="lazy" /></div>`
+      ).join('');
+      const dots = document.getElementById('carousel-dots');
+      dots.innerHTML = photos.map((_, i) =>
+        `<span class="dot" data-i="${i}" onclick="goToSlide(${i})"></span>`
+      ).join('');
+      const showControls = photos.length > 1;
+      document.querySelectorAll('.carousel-nav').forEach((b) => b.style.display = showControls ? 'flex' : 'none');
+      dots.style.display = showControls ? 'flex' : 'none';
+      updateCarousel();
+    }
+
+    function updateCarousel() {
+      const track = document.getElementById('carousel-track');
+      track.style.transform = `translateX(-${carouselIndex * 100}%)`;
+      document.querySelectorAll('#carousel-dots .dot').forEach((d, i) => {
+        d.classList.toggle('active', i === carouselIndex);
+      });
+      document.getElementById('carousel-counter').textContent =
+        carouselPhotos.length ? `${carouselIndex + 1} / ${carouselPhotos.length}` : '';
+    }
+
+    function carouselNext() {
+      if (!carouselPhotos.length) return;
+      carouselIndex = (carouselIndex + 1) % carouselPhotos.length;
+      updateCarousel();
+    }
+    function carouselPrev() {
+      if (!carouselPhotos.length) return;
+      carouselIndex = (carouselIndex - 1 + carouselPhotos.length) % carouselPhotos.length;
+      updateCarousel();
+    }
+    function goToSlide(i) {
+      carouselIndex = i;
+      updateCarousel();
+    }
+
     function openPhoto() {
+      carouselIndex = 0;
+      updateCarousel();
       document.getElementById('photo-modal').classList.add('show');
     }
     function closePhoto() {
@@ -479,6 +598,28 @@
     function closePhotoIfBackground(e) {
       if (e.target.id === 'photo-modal') closePhoto();
     }
+
+    // Swipe (geser satu jari) di dalam viewport carousel untuk ganti foto
+    (function setupCarouselSwipe() {
+      const viewport = document.getElementById('carousel-viewport');
+      let startX = 0, dx = 0, swiping = false;
+      viewport.addEventListener('touchstart', (e) => {
+        if (e.touches.length !== 1) return;
+        swiping = true;
+        startX = e.touches[0].clientX;
+        dx = 0;
+      }, { passive: true });
+      viewport.addEventListener('touchmove', (e) => {
+        if (!swiping || e.touches.length !== 1) return;
+        dx = e.touches[0].clientX - startX;
+      }, { passive: true });
+      viewport.addEventListener('touchend', () => {
+        if (!swiping) return;
+        swiping = false;
+        if (dx > 40) carouselPrev();
+        else if (dx < -40) carouselNext();
+      });
+    })();
 
     // ===== Narasi suara =====
     const fab = document.getElementById('narration-fab');
@@ -509,51 +650,134 @@
       document.getElementById('sheet').classList.add('expanded');
     }
 
-    // ===== Pinch-to-zoom (2 jari) untuk memperbesar/perkecil objek 3D =====
-    let pinchStartDistance = null;
-    let zoomAtPinchStart = 1;
-    let currentZoom = 1;
+    // =========================================================
+    // Kontrol sentuh objek 3D:
+    //  - 1 jari geser  -> ROTATE (putar) objek di tempat
+    //  - 2 jari geser  -> PAN (geser posisi) objek
+    //  - 2 jari cubit  -> ZOOM in/out
+    // Model tetap DIAM (tidak auto-berputar) sampai disentuh.
+    // =========================================================
+    const gestureGroup = document.getElementById('gesture-group');
+
     const MIN_ZOOM = 0.3;
     const MAX_ZOOM = 5;
+    const ROTATE_SPEED = 0.45;   // derajat per piksel geser
+    const PITCH_LIMIT = 55;      // batas kemiringan atas/bawah (derajat)
+    const PAN_SPEED = 0.0028;    // unit-dunia per piksel geser
+    const PAN_LIMIT = 1.1;       // batas geser objek dari titik tengah
+
+    let currentZoom = 1;
+    let rotY = 0, rotX = 0;
+    let panX = 0, panY = 0;
+
+    let gestureActive = false;
+    let lastTouchX = 0, lastTouchY = 0;
+    let lastCentroid = null;
+    let pinchStartDistance = null;
+    let zoomAtPinchStart = 1;
+
+    function isUIElement(target) {
+      return !!(target.closest && target.closest('#sheet, #photo-modal, #narration-fab, #topbar, #zoom-toast'));
+    }
 
     function getTouchDistance(touches) {
       const dx = touches[0].clientX - touches[1].clientX;
       const dy = touches[0].clientY - touches[1].clientY;
       return Math.sqrt(dx * dx + dy * dy);
     }
+    function getCentroid(touches) {
+      return {
+        x: (touches[0].clientX + touches[1].clientX) / 2,
+        y: (touches[0].clientY + touches[1].clientY) / 2
+      };
+    }
+    function clamp(v, min, max) { return Math.min(max, Math.max(min, v)); }
 
     function applyZoom() {
       const s = [baseScale[0] * currentZoom, baseScale[1] * currentZoom, baseScale[2] * currentZoom];
       objectContainer.setAttribute('scale', `${s[0]} ${s[1]} ${s[2]}`);
     }
+    function applyRotation() {
+      objectContainer.setAttribute('rotation', `${rotX} ${rotY} 0`);
+    }
+    function applyPan() {
+      gestureGroup.setAttribute('position', `${panX} ${panY} 0`);
+    }
+
+    function hideGestureToast() {
+      document.getElementById('zoom-toast').classList.add('hide');
+    }
 
     window.addEventListener('touchstart', (e) => {
-      if (e.touches.length === 2) {
+      if (isUIElement(e.target)) { gestureActive = false; return; }
+      gestureActive = true;
+
+      if (e.touches.length === 1) {
+        lastTouchX = e.touches[0].clientX;
+        lastTouchY = e.touches[0].clientY;
+        pinchStartDistance = null;
+        lastCentroid = null;
+      } else if (e.touches.length === 2) {
+        lastCentroid = getCentroid(e.touches);
         pinchStartDistance = getTouchDistance(e.touches);
         zoomAtPinchStart = currentZoom;
       }
-    }, { passive: false });
+    }, { passive: true });
 
     window.addEventListener('touchmove', (e) => {
-      if (e.touches.length === 2 && pinchStartDistance) {
+      if (!gestureActive) return;
+
+      if (e.touches.length === 1) {
+        // ROTATE dengan 1 jari
         e.preventDefault();
-        const newDistance = getTouchDistance(e.touches);
-        let newZoom = zoomAtPinchStart * (newDistance / pinchStartDistance);
-        newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, newZoom));
-        currentZoom = newZoom;
-        applyZoom();
+        const t = e.touches[0];
+        const dx = t.clientX - lastTouchX;
+        const dy = t.clientY - lastTouchY;
+        rotY += dx * ROTATE_SPEED;
+        rotX = clamp(rotX - dy * ROTATE_SPEED, -PITCH_LIMIT, PITCH_LIMIT);
+        lastTouchX = t.clientX;
+        lastTouchY = t.clientY;
+        applyRotation();
+        hideGestureToast();
+      } else if (e.touches.length === 2) {
+        // PAN + PINCH ZOOM dengan 2 jari
+        e.preventDefault();
+
+        if (pinchStartDistance) {
+          const newDistance = getTouchDistance(e.touches);
+          currentZoom = clamp(zoomAtPinchStart * (newDistance / pinchStartDistance), MIN_ZOOM, MAX_ZOOM);
+          applyZoom();
+        }
+
+        const centroid = getCentroid(e.touches);
+        if (lastCentroid) {
+          const dx = centroid.x - lastCentroid.x;
+          const dy = centroid.y - lastCentroid.y;
+          panX = clamp(panX + dx * PAN_SPEED, -PAN_LIMIT, PAN_LIMIT);
+          panY = clamp(panY - dy * PAN_SPEED, -PAN_LIMIT, PAN_LIMIT);
+          applyPan();
+        }
+        lastCentroid = centroid;
+        hideGestureToast();
       }
     }, { passive: false });
 
     window.addEventListener('touchend', (e) => {
-      if (e.touches.length < 2) pinchStartDistance = null;
+      if (e.touches.length === 1) {
+        // dari 2 jari -> 1 jari: mulai ulang baseline rotate agar tidak "meloncat"
+        lastTouchX = e.touches[0].clientX;
+        lastTouchY = e.touches[0].clientY;
+        pinchStartDistance = null;
+        lastCentroid = null;
+      } else if (e.touches.length === 0) {
+        gestureActive = false;
+        pinchStartDistance = null;
+        lastCentroid = null;
+      }
     });
 
-    // Toast zoom hilang otomatis setelah 4 detik, atau begitu user mulai pinch
-    setTimeout(() => document.getElementById('zoom-toast').classList.add('hide'), 4000);
-    window.addEventListener('touchstart', (e) => {
-      if (e.touches.length === 2) document.getElementById('zoom-toast').classList.add('hide');
-    }, { once: true });
+    // Petunjuk gesture hilang otomatis setelah 4 detik
+    setTimeout(hideGestureToast, 4000);
   </script>
 
 </body>
