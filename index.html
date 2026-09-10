@@ -6,6 +6,25 @@
   <title>JEJAKAR BALI</title>
 
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+  <!-- Meshopt decoder: A-Frame 1.4.2's built-in gltf-model component doesn't wire this
+       up on its own, so any .glb compressed with EXT_meshopt_compression (e.g. exported
+       from gltf.report or gltfpack with "Meshopt" enabled) fails with:
+       "THREE.GLTFLoader: setMeshoptDecoder must be called before loading compressed files"
+       This registers the decoder on every GLTFLoader A-Frame creates, so compressed
+       models load correctly. -->
+  <script src="https://unpkg.com/meshoptimizer/meshopt_decoder.js"></script>
+  <script>
+    (function () {
+      if (!window.THREE || !THREE.GLTFLoader || !window.MeshoptDecoder) return;
+      var OriginalGLTFLoader = THREE.GLTFLoader;
+      THREE.GLTFLoader = function (manager) {
+        OriginalGLTFLoader.call(this, manager);
+        this.setMeshoptDecoder(window.MeshoptDecoder);
+      };
+      THREE.GLTFLoader.prototype = OriginalGLTFLoader.prototype;
+      THREE.GLTFLoader.prototype.constructor = THREE.GLTFLoader;
+    })();
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
