@@ -429,7 +429,7 @@
         const modelEntity = document.createElement('a-entity');
         // cache-bust: ganti nilai ini tiap kali file .glb diganti/di-upload ulang,
         // supaya browser & CDN GitHub Pages tidak menyajikan versi lama yang ter-cache.
-        const MODEL_CACHE_VERSION = 'v2';
+        const MODEL_CACHE_VERSION = 'v3';
         modelEntity.setAttribute('gltf-model', `url(${site.model}?${MODEL_CACHE_VERSION})`);
         modelEntity.setAttribute('position', `0 ${site.yOffset || 0} 0`);
 
