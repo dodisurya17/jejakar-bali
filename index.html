@@ -134,6 +134,7 @@
     #photo-modal.show { display: flex; }
     .photo-frame {
       position: relative; max-width: 100%; max-height: 82vh;
+      width: min(92vw, 480px);
       border: 1.5px solid var(--brass); border-radius: 4px;
       padding: 8px; background: var(--panel-solid);
       box-shadow: 0 20px 60px rgba(0,0,0,0.55);
@@ -149,6 +150,7 @@
     }
     .carousel-track .carousel-slide {
       flex: 0 0 100%; display: flex; align-items: center; justify-content: center;
+      min-height: 160px;
     }
     .carousel-track img {
       display: block; max-width: 100%; max-height: 74vh; border-radius: 2px; pointer-events: none;
@@ -386,9 +388,13 @@
         scale: "1 1 1",
         yOffset: 0,
         photo: "images/gusti-ngurah-made-agung.jpeg",
-        narration: "I Gusti Ngurah Made Agung lahir 5 April 1876, dan pada 1902 dinobatkan sebagai Raja Badung. Saat Belanda menuntut ganti rugi atas insiden kapal Sri Komala, beliau menolak dan memilih melawan sampai titik darah penghabisan. Pada 20 September 1906 terjadilah Puputan Badung, perang habis-habisan yang menewaskan sekitar 1.000 orang termasuk sang raja, bangsawan, dan rakyatnya. Pada 2015 beliau dianugerahi gelar Pahlawan Nasional Indonesia, dan namanya diabadikan sebagai nama Lapangan Puputan Badung."
+        narration: "Dahulu, di Bali, ada seorang raja muda yang berani bernama I Gusti Ngurah Made Agung. Beliau menjadi Raja Badung sejak tahun 1902. Selain pemberani, beliau juga pintar menulis puisi dan cerita Bali. Suatu hari, ada kapal yang karam di pantai, dan Belanda menuduh rakyat Badung mencuri barang dari kapal itu, lalu memaksa raja membayar denda. Padahal rakyat tidak bersalah, jadi sang raja menolak dengan tegas karena beliau selalu membela kebenaran. Belanda pun marah dan menyerang Badung. Bersama rakyatnya, sang raja berjuang habis-habisan mempertahankan tanah kelahiran, perjuangan ini disebut Puputan Badung, yang terjadi pada 20 September 1906. Beliau gugur sebagai pahlawan yang berani membela rakyat dan kebenaran sampai akhir. Kini, namanya dikenang sebagai pahlawan nasional dan diabadikan sebagai nama lapangan di Denpasar."
       }
     };
+
+    // Naikkan nilai ini tiap kali foto 1.jpg–6.jpg (atau foto utama) diganti/diupload ulang,
+    // supaya browser & CDN GitHub Pages tidak menyajikan versi lama yang ter-cache.
+    const IMG_CACHE_VERSION = 'v1';
 
     const params = new URLSearchParams(window.location.search);
     const siteId = params.get('id') || 'gusti-ngurah-made-agung';
@@ -418,9 +424,10 @@
       if (site.photo) {
         const thumb = document.getElementById('photo-thumb');
         const thumbImg = document.getElementById('photo-thumb-img');
-        thumbImg.src = site.photo;
+        thumbImg.src = `${site.photo}?${IMG_CACHE_VERSION}`;
         thumb.style.display = 'block';
-        siteImages = [site.photo, 'images/1.jpg', 'images/2.jpg', 'images/3.jpg', 'images/4.jpg', 'images/5.jpg', 'images/6.jpg'];
+        siteImages = [site.photo, 'images/1.jpg', 'images/2.jpg', 'images/3.jpg', 'images/4.jpg', 'images/5.jpg', 'images/6.jpg']
+          .map(src => `${src}?${IMG_CACHE_VERSION}`);
       }
 
       floatingLabel.setAttribute('text', `value: ${site.title}; align: center; width: 2.6; color: #f4ecdd; font: exo2bold`);
@@ -477,13 +484,17 @@
       document.getElementById('sheet').classList.toggle('expanded');
     }
 
-    // ===== Foto referensi (carousel, 7 gambar) =====
+    // ===== Foto referensi (carousel) =====
     let carouselIndex = 0;
 
     function buildCarousel() {
       const track = document.getElementById('carousel-track');
       const dots = document.getElementById('carousel-dots');
-      track.innerHTML = siteImages.map(src => `<div class="carousel-slide"><img src="${src}" alt="Foto referensi"></div>`).join('');
+      track.innerHTML = siteImages.map(src =>
+        `<div class="carousel-slide"><img src="${src}" alt="Foto referensi"
+          onerror="this.replaceWith(Object.assign(document.createElement('div'),{style:'padding:60px 30px;color:var(--cream-dim);font-size:12px;text-align:center',textContent:'Gambar tidak ditemukan: ${src.split('?')[0]}'}))">
+        </div>`
+      ).join('');
       dots.innerHTML = siteImages.map(() => `<span class="carousel-dot"></span>`).join('');
       carouselIndex = 0;
       updateCarousel();
