@@ -139,35 +139,10 @@
       padding: 8px; background: var(--panel-solid);
       box-shadow: 0 20px 60px rgba(0,0,0,0.55);
     }
-
-    .carousel-track {
-      display: flex; overflow: hidden; border-radius: 2px;
-      width: 100%; height: 58vh;
-      transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-      touch-action: pan-y;
+    #photo-modal-img {
+      display: block; width: 100%; height: 58vh; border-radius: 2px;
+      object-fit: contain; background: var(--panel-solid);
     }
-    .carousel-track .carousel-slide {
-      flex: 0 0 100%; width: 100%; height: 100%; flex-shrink: 0;
-      display: flex; align-items: center; justify-content: center;
-      background-size: contain; background-repeat: no-repeat; background-position: center;
-    }
-    .carousel-loading { color: var(--cream-dim); font-size: 12px; }
-    .carousel-nav {
-      position: absolute; top: 50%; transform: translateY(-50%);
-      width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--hairline);
-      background: rgba(21,18,15,0.6); color: var(--brass-soft); font-size: 20px; line-height: 1;
-      display: flex; align-items: center; justify-content: center;
-    }
-    .carousel-nav.prev { left: 6px; }
-    .carousel-nav.next { right: 6px; }
-    .carousel-dots {
-      position: absolute; bottom: -14px; left: 50%; transform: translateX(-50%);
-      display: flex; gap: 6px;
-    }
-    .carousel-dot {
-      width: 6px; height: 6px; border-radius: 50%; background: var(--hairline);
-    }
-    .carousel-dot.active { background: var(--brass); }
     #photo-modal-close {
       position: absolute; top: -16px; right: -16px;
       background: var(--brass); color: var(--ink); border: none;
@@ -311,10 +286,7 @@
 
   <div id="photo-modal" onclick="closePhotoIfBackground(event)">
     <div class="photo-frame">
-      <div id="carousel-track" class="carousel-track"></div>
-      <button id="carousel-prev" class="carousel-nav prev" onclick="carouselStep(event,-1)" aria-label="Sebelumnya">&#8249;</button>
-      <button id="carousel-next" class="carousel-nav next" onclick="carouselStep(event,1)" aria-label="Berikutnya">&#8250;</button>
-      <div id="carousel-dots" class="carousel-dots"></div>
+      <img id="photo-modal-img" src="" alt="Foto referensi" />
       <button id="photo-modal-close" onclick="closePhoto()" aria-label="Tutup">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
       </button>
@@ -389,9 +361,9 @@
       }
     };
 
-    // Naikkan nilai ini tiap kali foto 1.jpg–6.jpg (atau foto utama) diganti/diupload ulang,
+    // Naikkan nilai ini tiap kali foto utama diganti/diupload ulang,
     // supaya browser & CDN GitHub Pages tidak menyajikan versi lama yang ter-cache.
-    const IMG_CACHE_VERSION = 'v3';
+    const IMG_CACHE_VERSION = 'v4';
 
     const params = new URLSearchParams(window.location.search);
     const siteId = params.get('id') || 'gusti-ngurah-made-agung';
@@ -406,7 +378,7 @@
     const floatingLabel = document.getElementById('floating-label');
 
     let baseScale = [1, 1, 1];
-    let siteImages = [];
+    let sitePhotoUrl = '';
 
     if (!site) {
       loadingEl.style.display = 'none';
@@ -421,10 +393,9 @@
       if (site.photo) {
         const thumb = document.getElementById('photo-thumb');
         const thumbImg = document.getElementById('photo-thumb-img');
-        thumbImg.src = `${site.photo}?${IMG_CACHE_VERSION}`;
+        sitePhotoUrl = `${site.photo}?${IMG_CACHE_VERSION}`;
+        thumbImg.src = sitePhotoUrl;
         thumb.style.display = 'block';
-        siteImages = [site.photo, 'images/1.jpg', 'images/2.jpg', 'images/3.jpg', 'images/4.jpg', 'images/5.jpg', 'images/6.jpg']
-          .map(src => `${src}?${IMG_CACHE_VERSION}`);
       }
 
       floatingLabel.setAttribute('text', `value: ${site.title}; align: center; width: 2.6; color: #f4ecdd; font: exo2bold`);
@@ -481,54 +452,10 @@
       document.getElementById('sheet').classList.toggle('expanded');
     }
 
-    // ===== Foto referensi (carousel berbasis background-image) =====
-    let carouselIndex = 0;
-
-    function buildCarousel() {
-      const track = document.getElementById('carousel-track');
-      const dots = document.getElementById('carousel-dots');
-      track.innerHTML = siteImages.map(src => `<div class="carousel-slide" data-src="${src}"><span class="carousel-loading">Memuat…</span></div>`).join('');
-      dots.innerHTML = siteImages.map(() => `<span class="carousel-dot"></span>`).join('');
-
-      document.querySelectorAll('#carousel-track .carousel-slide').forEach(slide => {
-        const src = slide.dataset.src;
-        const tester = new Image();
-        tester.onload = () => {
-          slide.style.backgroundImage = `url('${src}')`;
-          slide.innerHTML = '';
-        };
-        tester.onerror = () => {
-          slide.innerHTML = `<div style="padding:24px;color:var(--cream-dim);font-size:12px;text-align:center">Gambar tidak ditemukan:<br>${src.split('?')[0]}</div>`;
-        };
-        tester.src = src;
-      });
-
-      carouselIndex = 0;
-      updateCarousel();
-    }
-    function updateCarousel() {
-      document.getElementById('carousel-track').style.transform = `translateX(-${carouselIndex * 100}%)`;
-      document.querySelectorAll('.carousel-dot').forEach((d, i) => d.classList.toggle('active', i === carouselIndex));
-    }
-    function carouselStep(e, dir) {
-      e.stopPropagation();
-      carouselIndex = (carouselIndex + dir + siteImages.length) % siteImages.length;
-      updateCarousel();
-    }
-
-    let carSwipeStartX = null;
-    document.getElementById('carousel-track').addEventListener('touchstart', (e) => {
-      carSwipeStartX = e.touches[0].clientX;
-    }, { passive: true });
-    document.getElementById('carousel-track').addEventListener('touchend', (e) => {
-      if (carSwipeStartX === null) return;
-      const dx = e.changedTouches[0].clientX - carSwipeStartX;
-      if (Math.abs(dx) > 40) carouselStep(e, dx < 0 ? 1 : -1);
-      carSwipeStartX = null;
-    });
-
+    // ===== Foto referensi (foto tunggal, tanpa carousel) =====
     function openPhoto() {
-      buildCarousel();
+      const modalImg = document.getElementById('photo-modal-img');
+      modalImg.src = sitePhotoUrl;
       document.getElementById('photo-modal').classList.add('show');
     }
     function closePhoto() {
